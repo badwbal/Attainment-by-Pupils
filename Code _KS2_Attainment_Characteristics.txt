@@ -1,0 +1,538 @@
+
+select var(READPROGSCOREP) as [Reading progress score variance],
+var(WRITPROGSCOREP) as [Writing progress score variance],
+var(MATPROGSCOREP) as [Maths progress score variance]
+into #nationalvariances
+from [pdr].[tier1].[KS2_Pupil_MasterView]
+Where NFTYPE in(21,22,23,24,25,20,51,52,57,58) and SCHRES=1 and ENDKS=1
+and academicyear = 201516 and version = 'f'
+
+--
+select 
+a.[URN], 
+a.[LAEstab], 
+a.[readexp], 
+a.[gpsexp], 
+a.[matexp], 
+a.[readhigh],
+a.[gpshigh],
+a.[MATHIGH],
+a.[READPROGSCORE],
+a.[INREADPROG],
+a.[MATPROGSCORE],
+a.[INMATPROG],
+a.[WRITPROGSCORE],
+a.[INWRITPROG],
+a.[fsm6cla1a], 
+a.schres,
+a.[FSM],
+a.[ETHNIC], 
+a.SENF,
+a.NFTYPE,
+b.[reading progress score variance],
+b.[Writing progress score variance],
+b.[Maths progress score variance]
+into #KS2_2016
+from [pdr].[tier1].[KS2_Pupil_MasterView] a
+LEFT JOIN #nationalvariances b
+on 1=1
+where academicyear = 201516 and [version] = 'f' and SCHRES = 1 and ENDKS =1
+and NFTYPE in ('20','21','22','23','24','51','52','57','58')
+
+/*FSM All state-funded TABLE */
+select
+FSm,
+--pupils meeting expected and high standards
+sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as [Number meeting Exp Standard],
+round(100*cast(sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting Exp Standard],
+sum (case when readhigh =1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as [Number meeting high standard],
+round(100*cast(sum (case when readhigh = 1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting High Standard],
+sum (schres) as total_pupils,
+--reading progress
+round(avg(READPROGSCORE),1) as [Average Reading Progress],
+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)) as [confidence interval width],
+round(avg(READPROGSCORE)-1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Lower reading Confidence Limit],
+round(avg(READPROGSCORE)+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Upper reading Confidence Limit],
+sum(inreadprog) as [Pupils in reading progress],
+--writing progress
+round(avg(WRITPROGSCORE),1) as [Average Writing Progress],
+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)) as [confidence interval width],
+round(avg(writPROGSCORE)-1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Lower writing Confidence Limit],
+round(avg(writPROGSCORE)+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Upper writing Confidence Limit],
+sum(inwritprog) as [Pupils in writing progress],
+--maths progress
+round(avg(matPROGSCORE),1) as [Average maths Progress],
+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)) as [confidence interval width],
+round(avg(matPROGSCORE)-1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Lower maths Confidence Limit],
+round(avg(matPROGSCORE)+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Upper maths Confidence Limit],
+sum(inmatprog) as [Pupils in maths progress]
+from #ks2_2016 group by FSM
+order by FSM 
+
+
+/*FSM TABLE split by type*/
+select case when nftype = '20' then 'Sponsored Academies'
+	when nftype = '51' then 'converter academies'
+	when nftype in ('21','22','23','24') then 'LA Maintained Schools'
+	when nftype = '52' then 'Free Schools'
+	when nftype = '57' then 'UTC'
+	when nftype = '58' then 'Studio School'
+	when nftype in ('20','51','21','22','23','24','52','57','58') then 'All State-Funded Mainstream' 
+	else 'others' end as [Type of School],
+FSM,
+--pupils meeting expected and high standards
+sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as [Number meeting Exp Standard],
+round(100*cast(sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting Exp Standard],
+sum (case when readhigh =1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as [Number meeting high standard],
+round(100*cast(sum (case when readhigh = 1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting High Standard],
+sum (schres) as total_pupils,
+--reading progress
+round(avg(READPROGSCORE),1) as [Average Reading Progress],
+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)) as [confidence interval width],
+round(avg(READPROGSCORE)-1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Lower reading Confidence Limit],
+round(avg(READPROGSCORE)+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Upper reading Confidence Limit],
+sum(inreadprog) as [Pupils in reading progress],
+--writing progress
+round(avg(WRITPROGSCORE),1) as [Average Writing Progress],
+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)) as [confidence interval width],
+round(avg(writPROGSCORE)-1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Lower writing Confidence Limit],
+round(avg(writPROGSCORE)+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Upper writing Confidence Limit],
+sum(inwritprog) as [Pupils in writing progress],
+--maths progress
+round(avg(matPROGSCORE),1) as [Average maths Progress],
+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)) as [confidence interval width],
+round(avg(matPROGSCORE)-1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Lower maths Confidence Limit],
+round(avg(matPROGSCORE)+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Upper maths Confidence Limit],
+sum(inmatprog) as [Pupils in maths progress]
+from #ks2_2016 group by case when nftype = '20' then 'Sponsored Academies'
+	when nftype = '51' then 'converter academies'
+	when nftype in ('21','22','23','24') then 'LA Maintained Schools'
+	when nftype = '52' then 'Free Schools'
+	when nftype = '57' then 'UTC'
+	when nftype = '58' then 'Studio School' 
+	when nftype in ('20','51','21','22','23','24','52','57','58') then 'All State-Funded Mainstream' 
+	else 'others' end , FSM with rollup
+order by case when nftype = '20' then 'Sponsored Academies'
+	when nftype = '51' then 'converter academies'
+	when nftype in ('21','22','23','24') then 'LA Maintained Schools'
+	when nftype = '52' then 'Free Schools'
+	when nftype = '57' then 'UTC'
+	when nftype = '58' then 'Studio School' 
+when nftype in ('20','51','21','22','23','24','52','57','58') then 'All State-Funded Mainstream' 
+	else 'others' end , fsm
+
+/*SEN TABLE - all SEN*/
+select 
+case when nftype = '20' then 'Sponsored Academies'
+	when nftype = '51' then 'converter academies'
+	when nftype in ('21','22','23','24') then 'LA Maintained Schools'
+	when nftype = '52' then 'Free Schools'
+	when nftype = '57' then 'UTC'
+	when nftype = '58' then 'Studio School' 
+when nftype in ('20','51','21','22','23','24','52','57','58') then 'All State-Funded Mainstream' 
+	else 'others' end as [Type of School],
+case when SENF in ('n') then '01_No Identified SEN'
+when SENF in ('e','k','s') then '02_All SEN'
+when SENF in ('e','s') then '03_EHC / Statement'
+when SENF is null then '04_Unclassified'
+else '05_not included' end as [SEN],
+--pupils meeting expected and high standards
+sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as [Number meeting Exp Standard],
+round(100*cast(sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting Exp Standard],
+sum (case when readhigh =1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as [Number meeting high standard],
+round(100*cast(sum (case when readhigh = 1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting High Standard],
+sum (schres) as total_pupils,
+--reading progress
+round(avg(READPROGSCORE),1) as [Average Reading Progress],
+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)) as [confidence interval width],
+round(avg(READPROGSCORE)-1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Lower reading Confidence Limit],
+round(avg(READPROGSCORE)+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Upper reading Confidence Limit],
+sum(inreadprog) as [Pupils in reading progress],
+--writing progress
+round(avg(WRITPROGSCORE),1) as [Average Writing Progress],
+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)) as [confidence interval width],
+round(avg(writPROGSCORE)-1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Lower writing Confidence Limit],
+round(avg(writPROGSCORE)+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Upper writing Confidence Limit],
+sum(inwritprog) as [Pupils in writing progress],
+--maths progress
+round(avg(matPROGSCORE),1) as [Average maths Progress],
+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)) as [confidence interval width],
+round(avg(matPROGSCORE)-1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Lower maths Confidence Limit],
+round(avg(matPROGSCORE)+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Upper maths Confidence Limit],
+sum(inmatprog) as [Pupils in maths progress]
+from #ks2_2016 
+group by 
+case when nftype = '20' then 'Sponsored Academies'
+	when nftype = '51' then 'converter academies'
+	when nftype in ('21','22','23','24') then 'LA Maintained Schools'
+	when nftype = '52' then 'Free Schools'
+	when nftype = '57' then 'UTC'
+	when nftype = '58' then 'Studio School' 
+when nftype in ('20','51','21','22','23','24','52','57','58') then 'All State-Funded Mainstream' 
+	else 'others' end, 
+case when SENF in ('n') then '01_No Identified SEN'
+when SENF in ('e','k','s') then '02_All SEN'
+when SENF in ('e','s') then '03_EHC / Statement'
+when SENF is null then '04_Unclassified'
+else '05_not included' end 
+order by 
+case when nftype = '20' then 'Sponsored Academies'
+	when nftype = '51' then 'converter academies'
+	when nftype in ('21','22','23','24') then 'LA Maintained Schools'
+	when nftype = '52' then 'Free Schools'
+	when nftype = '57' then 'UTC'
+	when nftype = '58' then 'Studio School' 
+when nftype in ('20','51','21','22','23','24','52','57','58') then 'All State-Funded Mainstream' 
+	else 'others' end, 
+case when SENF in ('n') then '01_No Identified SEN'
+when SENF in ('e','k','s') then '02_All SEN'
+when SENF in ('e','s') then '03_EHC / Statement'
+when SENF is null then '04_Unclassified'
+else '05_not included' end 
+
+/*SEN TABLE - EHC / statement / SEN Support*/
+select 
+case when nftype = '20' then 'Sponsored Academies'
+	when nftype = '51' then 'converter academies'
+	when nftype in ('21','22','23','24') then 'LA Maintained Schools'
+	when nftype = '52' then 'Free Schools'
+	when nftype = '57' then 'UTC'
+	when nftype = '58' then 'Studio School' 
+when nftype in ('20','51','21','22','23','24','52','57','58') then 'All State-Funded Mainstream' 
+	else 'others' end as [Type of School],
+case
+when SENF in ('e','s') then '03_EHC / Statement'
+when SENF in ('k') then '04_SEN_SUpport'
+when SENF is null then '04_Unclassified'
+else '05_not included' end as [SEN],
+--pupils meeting expected and high standards
+sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as [Number meeting Exp Standard],
+round(100*cast(sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting Exp Standard],
+sum (case when readhigh =1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as [Number meeting high standard],
+round(100*cast(sum (case when readhigh = 1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting High Standard],
+sum (schres) as total_pupils,
+--reading progress
+round(avg(READPROGSCORE),1) as [Average Reading Progress],
+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)) as [confidence interval width],
+round(avg(READPROGSCORE)-1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Lower reading Confidence Limit],
+round(avg(READPROGSCORE)+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Upper reading Confidence Limit],
+sum(inreadprog) as [Pupils in reading progress],
+--writing progress
+round(avg(WRITPROGSCORE),1) as [Average Writing Progress],
+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)) as [confidence interval width],
+round(avg(writPROGSCORE)-1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Lower writing Confidence Limit],
+round(avg(writPROGSCORE)+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Upper writing Confidence Limit],
+sum(inwritprog) as [Pupils in writing progress],
+--maths progress
+round(avg(matPROGSCORE),1) as [Average maths Progress],
+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)) as [confidence interval width],
+round(avg(matPROGSCORE)-1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Lower maths Confidence Limit],
+round(avg(matPROGSCORE)+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Upper maths Confidence Limit],
+sum(inmatprog) as [Pupils in maths progress]
+from #ks2_2016 
+group by 
+case when nftype = '20' then 'Sponsored Academies'
+	when nftype = '51' then 'converter academies'
+	when nftype in ('21','22','23','24') then 'LA Maintained Schools'
+	when nftype = '52' then 'Free Schools'
+	when nftype = '57' then 'UTC'
+	when nftype = '58' then 'Studio School' 
+when nftype in ('20','51','21','22','23','24','52','57','58') then 'All State-Funded Mainstream' 
+	else 'others' end, 
+case
+when SENF in ('e','s') then '03_EHC / Statement'
+when SENF in ('k') then '04_SEN_SUpport'
+when SENF is null then '04_Unclassified'
+else '05_not included' end 
+order by 
+case when nftype = '20' then 'Sponsored Academies'
+	when nftype = '51' then 'converter academies'
+	when nftype in ('21','22','23','24') then 'LA Maintained Schools'
+	when nftype = '52' then 'Free Schools'
+	when nftype = '57' then 'UTC'
+	when nftype = '58' then 'Studio School' 
+when nftype in ('20','51','21','22','23','24','52','57','58') then 'All State-Funded Mainstream' 
+	else 'others' end, 
+case
+when SENF in ('e','s') then '03_EHC / Statement'
+when SENF in ('k') then '04_SEN_SUpport'
+when SENF is null then '04_Unclassified'
+else '05_not included' end 
+
+/* sEN without school type */
+/*SEN TABLE*/
+select 
+case when SENF in ('n') then '01_No Identified SEN'
+when SENF in ('e','k','s') then '02_All SEN'
+when SENF in ('e','s') then '03_EHC / Statement'
+when SENF is null then '04_Unclassified'
+else '05_not included' end as [SEN],
+--pupils meeting expected and high standards
+sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as [Number meeting Exp Standard],
+round(100*cast(sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting Exp Standard],
+sum (case when readhigh =1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as [Number meeting high standard],
+round(100*cast(sum (case when readhigh = 1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting High Standard],
+sum (schres) as total_pupils,
+--reading progress
+round(avg(READPROGSCORE),1) as [Average Reading Progress],
+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)) as [confidence interval width],
+round(avg(READPROGSCORE)-1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Lower reading Confidence Limit],
+round(avg(READPROGSCORE)+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Upper reading Confidence Limit],
+sum(inreadprog) as [Pupils in reading progress],
+--writing progress
+round(avg(WRITPROGSCORE),1) as [Average Writing Progress],
+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)) as [confidence interval width],
+round(avg(writPROGSCORE)-1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Lower writing Confidence Limit],
+round(avg(writPROGSCORE)+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Upper writing Confidence Limit],
+sum(inwritprog) as [Pupils in writing progress],
+--maths progress
+round(avg(matPROGSCORE),1) as [Average maths Progress],
+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)) as [confidence interval width],
+round(avg(matPROGSCORE)-1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Lower maths Confidence Limit],
+round(avg(matPROGSCORE)+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Upper maths Confidence Limit],
+sum(inmatprog) as [Pupils in maths progress]
+from #ks2_2016 
+group by 
+case when SENF in ('n') then '01_No Identified SEN'
+when SENF in ('e','k','s') then '02_All SEN'
+when SENF in ('e','s') then '03_EHC / Statement'
+when SENF is null then '04_Unclassified'
+else '05_not included' end 
+order by 
+case when SENF in ('n') then '01_No Identified SEN'
+when SENF in ('e','k','s') then '02_All SEN'
+when SENF in ('e','s') then '03_EHC / Statement'
+when SENF is null then '04_Unclassified'
+else '05_not included' end 
+
+/*SEN TABLE - EHC / statement / SEN Support (no school type)*/
+select 
+case
+when SENF in ('e','s') then '03_EHC / Statement'
+when SENF in ('k') then '04_SEN_SUpport'
+when SENF is null then '04_Unclassified'
+else '05_not included' end as [SEN],
+--pupils meeting expected and high standards
+sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as [Number meeting Exp Standard],
+round(100*cast(sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting Exp Standard],
+sum (case when readhigh =1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as [Number meeting high standard],
+round(100*cast(sum (case when readhigh = 1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting High Standard],
+sum (schres) as total_pupils,
+--reading progress
+round(avg(READPROGSCORE),1) as [Average Reading Progress],
+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)) as [confidence interval width],
+round(avg(READPROGSCORE)-1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Lower reading Confidence Limit],
+round(avg(READPROGSCORE)+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Upper reading Confidence Limit],
+sum(inreadprog) as [Pupils in reading progress],
+--writing progress
+round(avg(WRITPROGSCORE),1) as [Average Writing Progress],
+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)) as [confidence interval width],
+round(avg(writPROGSCORE)-1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Lower writing Confidence Limit],
+round(avg(writPROGSCORE)+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Upper writing Confidence Limit],
+sum(inwritprog) as [Pupils in writing progress],
+--maths progress
+round(avg(matPROGSCORE),1) as [Average maths Progress],
+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)) as [confidence interval width],
+round(avg(matPROGSCORE)-1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Lower maths Confidence Limit],
+round(avg(matPROGSCORE)+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Upper maths Confidence Limit],
+sum(inmatprog) as [Pupils in maths progress]
+from #ks2_2016 
+group by 
+case
+when SENF in ('e','s') then '03_EHC / Statement'
+when SENF in ('k') then '04_SEN_SUpport'
+when SENF is null then '04_Unclassified'
+else '05_not included' end 
+order by 
+case
+when SENF in ('e','s') then '03_EHC / Statement'
+when SENF in ('k') then '04_SEN_SUpport'
+when SENF is null then '04_Unclassified'
+else '05_not included' end 
+
+/* Ethnicity Table */
+select
+case when nftype = '20' then 'Sponsored Academies'
+	when nftype = '51' then 'converter academies'
+	when nftype in ('21','22','23','24') then 'LA Maintained Schools'
+	when nftype = '52' then 'Free Schools'
+	when nftype = '57' then 'UTC'
+	when nftype = '58' then 'Studio School' 
+when nftype in ('20','51','21','22','23','24','52','57','58') then 'All State-Funded Mainstream' 
+	else 'others' end as [Type of School],
+case 
+	when ethnic in ('WBRI', 'WCOR','WENG','WSCO','WWEL','WOWB','WIRI','WIRT',
+					'WROG','WROM','WROR','WROO',
+					'WOTH' ,'WALB', 'WBOS', 'WCRO', 'WGRE', 'WGRK', 'WGRC', 
+					'WITA', 'WKOS', 'WPOR', 'WSER', 'WTUR', 'WTUK', 'WTUC', 
+					'WEUR', 'WEEU', 'WWEU', 'WOTW') then '01_WHITE'
+	
+	WHEN ETHNIC IN ('MWBC','MWBA','MWAS','MWAP','MWAI','MWAO','MOTH', 'MAOE', 'MABL','MACH','MBOE','MCOE','MWOE','MWCH','MOTM') THEN '02_MIXED'
+	
+	WHEN ETHNIC IN ('AIND','APKN', 'AMPK', 'AKPA', 'AOPK','ABAN','AOTH','AAFR','AKAO','ANEP','ASNL','ASLT', 'ASRO','AOTA') THEN '03_ASIAN'
+	WHEN ETHNIC IN ('BCRB','BAFR','BANN','BCON','BGHA','BNGN','BSLN','BSOM','BSUD','BAOF','BOTH','BEUR','BNAM','BOTB') THEN '04_BLACK'
+	WHEN ETHNIC IN ('CHNE','CHKC','CMAL','CSNG','CTWN', 'COCH') THEN '05_CHINESE'
+	WHEN ETHNIC IN ('OOTH','OAFG','OARA','OEGY','OFIL','ORIN','OIRQ','OJPN',
+					'OKOR','OKRD','OLAM','OLEB','OLIB','OMAL','OMRC','OPOL',
+					'OTHA','OVIE','OYEM','OOEG') THEN '06_OTHER_ETHNIC_GROUP'
+	ELSE '07_UNCLASSIFIED'
+	END AS ETHNICTY,
+--pupils meeting expected and high standards
+sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as [Number meeting Exp Standard],
+round(100*cast(sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting Exp Standard],
+sum (case when readhigh =1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as [Number meeting high standard],
+round(100*cast(sum (case when readhigh = 1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting High Standard],
+sum (schres) as total_pupils,
+--reading progress
+round(avg(READPROGSCORE),1) as [Average Reading Progress],
+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)) as [confidence interval width],
+round(avg(READPROGSCORE)-1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Lower reading Confidence Limit],
+round(avg(READPROGSCORE)+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Upper reading Confidence Limit],
+sum(inreadprog) as [Pupils in reading progress],
+--writing progress
+round(avg(WRITPROGSCORE),1) as [Average Writing Progress],
+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)) as [confidence interval width],
+round(avg(writPROGSCORE)-1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Lower writing Confidence Limit],
+round(avg(writPROGSCORE)+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Upper writing Confidence Limit],
+sum(inwritprog) as [Pupils in writing progress],
+--maths progress
+round(avg(matPROGSCORE),1) as [Average maths Progress],
+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)) as [confidence interval width],
+round(avg(matPROGSCORE)-1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Lower maths Confidence Limit],
+round(avg(matPROGSCORE)+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Upper maths Confidence Limit],
+sum(inmatprog) as [Pupils in maths progress]
+from #ks2_2016
+group by 
+case when nftype = '20' then 'Sponsored Academies'
+	when nftype = '51' then 'converter academies'
+	when nftype in ('21','22','23','24') then 'LA Maintained Schools'
+	when nftype = '52' then 'Free Schools'
+	when nftype = '57' then 'UTC'
+	when nftype = '58' then 'Studio School' 
+when nftype in ('20','51','21','22','23','24','52','57','58') then 'All State-Funded Mainstream' 
+	else 'others' end, 
+	case 
+	when ethnic in ('WBRI', 'WCOR','WENG','WSCO','WWEL','WOWB','WIRI','WIRT',
+					'WROG','WROM','WROR','WROO',
+					'WOTH' ,'WALB', 'WBOS', 'WCRO', 'WGRE', 'WGRK', 'WGRC', 
+					'WITA', 'WKOS', 'WPOR', 'WSER', 'WTUR', 'WTUK', 'WTUC', 
+					'WEUR', 'WEEU', 'WWEU', 'WOTW') then '01_WHITE'
+	
+	WHEN ETHNIC IN ('MWBC','MWBA','MWAS','MWAP','MWAI','MWAO','MOTH', 'MAOE', 'MABL','MACH','MBOE','MCOE','MWOE','MWCH','MOTM') THEN '02_MIXED'
+	
+	WHEN ETHNIC IN ('AIND','APKN', 'AMPK', 'AKPA', 'AOPK','ABAN','AOTH','AAFR','AKAO','ANEP','ASNL','ASLT', 'ASRO','AOTA') THEN '03_ASIAN'
+	WHEN ETHNIC IN ('BCRB','BAFR','BANN','BCON','BGHA','BNGN','BSLN','BSOM','BSUD','BAOF','BOTH','BEUR','BNAM','BOTB') THEN '04_BLACK'
+	WHEN ETHNIC IN ('CHNE','CHKC','CMAL','CSNG','CTWN', 'COCH') THEN '05_CHINESE'
+	WHEN ETHNIC IN ('OOTH','OAFG','OARA','OEGY','OFIL','ORIN','OIRQ','OJPN',
+					'OKOR','OKRD','OLAM','OLEB','OLIB','OMAL','OMRC','OPOL',
+					'OTHA','OVIE','OYEM','OOEG') THEN '06_OTHER_ETHNIC_GROUP'
+	ELSE '07_UNCLASSIFIED'
+	END
+order by
+case when nftype = '20' then 'Sponsored Academies'
+	when nftype = '51' then 'converter academies'
+	when nftype in ('21','22','23','24') then 'LA Maintained Schools'
+	when nftype = '52' then 'Free Schools'
+	when nftype = '57' then 'UTC'
+	when nftype = '58' then 'Studio School' 
+	when nftype in ('20','51','21','22','23','24','52','57','58') then 'All State-Funded Mainstream' 
+	else 'others' end, 
+	case 
+	when ethnic in ('WBRI', 'WCOR','WENG','WSCO','WWEL','WOWB','WIRI','WIRT',
+					'WROG','WROM','WROR','WROO',
+					'WOTH' ,'WALB', 'WBOS', 'WCRO', 'WGRE', 'WGRK', 'WGRC', 
+					'WITA', 'WKOS', 'WPOR', 'WSER', 'WTUR', 'WTUK', 'WTUC', 
+					'WEUR', 'WEEU', 'WWEU', 'WOTW') then '01_WHITE'
+	
+	WHEN ETHNIC IN ('MWBC','MWBA','MWAS','MWAP','MWAI','MWAO','MOTH', 'MAOE', 'MABL','MACH','MBOE','MCOE','MWOE','MWCH','MOTM') THEN '02_MIXED'
+	
+	WHEN ETHNIC IN ('AIND','APKN', 'AMPK', 'AKPA', 'AOPK','ABAN','AOTH','AAFR','AKAO','ANEP','ASNL','ASLT', 'ASRO','AOTA') THEN '03_ASIAN'
+	WHEN ETHNIC IN ('BCRB','BAFR','BANN','BCON','BGHA','BNGN','BSLN','BSOM','BSUD','BAOF','BOTH','BEUR','BNAM','BOTB') THEN '04_BLACK'
+	WHEN ETHNIC IN ('CHNE','CHKC','CMAL','CSNG','CTWN', 'COCH') THEN '05_CHINESE'
+	WHEN ETHNIC IN ('OOTH','OAFG','OARA','OEGY','OFIL','ORIN','OIRQ','OJPN',
+					'OKOR','OKRD','OLAM','OLEB','OLIB','OMAL','OMRC','OPOL',
+					'OTHA','OVIE','OYEM','OOEG') THEN '06_OTHER_ETHNIC_GROUP'
+	ELSE '07_UNCLASSIFIED'
+	END
+
+/*Ethnicity no school type */
+/* Ethnicity Table */
+select
+case 
+	when ethnic in ('WBRI', 'WCOR','WENG','WSCO','WWEL','WOWB','WIRI','WIRT',
+					'WROG','WROM','WROR','WROO',
+					'WOTH' ,'WALB', 'WBOS', 'WCRO', 'WGRE', 'WGRK', 'WGRC', 
+					'WITA', 'WKOS', 'WPOR', 'WSER', 'WTUR', 'WTUK', 'WTUC', 
+					'WEUR', 'WEEU', 'WWEU', 'WOTW') then '01_WHITE'
+	
+	WHEN ETHNIC IN ('MWBC','MWBA','MWAS','MWAP','MWAI','MWAO','MOTH', 'MAOE', 'MABL','MACH','MBOE','MCOE','MWOE','MWCH','MOTM') THEN '02_MIXED'
+	
+	WHEN ETHNIC IN ('AIND','APKN', 'AMPK', 'AKPA', 'AOPK','ABAN','AOTH','AAFR','AKAO','ANEP','ASNL','ASLT', 'ASRO','AOTA') THEN '03_ASIAN'
+	WHEN ETHNIC IN ('BCRB','BAFR','BANN','BCON','BGHA','BNGN','BSLN','BSOM','BSUD','BAOF','BOTH','BEUR','BNAM','BOTB') THEN '04_BLACK'
+	WHEN ETHNIC IN ('CHNE','CHKC','CMAL','CSNG','CTWN', 'COCH') THEN '05_CHINESE'
+	WHEN ETHNIC IN ('OOTH','OAFG','OARA','OEGY','OFIL','ORIN','OIRQ','OJPN',
+					'OKOR','OKRD','OLAM','OLEB','OLIB','OMAL','OMRC','OPOL',
+					'OTHA','OVIE','OYEM','OOEG') THEN '06_OTHER_ETHNIC_GROUP'
+	ELSE '07_UNCLASSIFIED'
+	END AS ETHNICTY,
+--pupils meeting expected and high standards
+sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as [Number meeting Exp Standard],
+round(100*cast(sum (case when readexp = 1 and gpsexp = 1 and matexp = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting Exp Standard],
+sum (case when readhigh =1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as [Number meeting high standard],
+round(100*cast(sum (case when readhigh = 1 and gpshigh = 1 and mathigh = 1 then 1 else 0 end) as float) / count(*),0) as [Percent meeting High Standard],
+sum (schres) as total_pupils,
+--reading progress
+round(avg(READPROGSCORE),1) as [Average Reading Progress],
+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)) as [confidence interval width],
+round(avg(READPROGSCORE)-1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Lower reading Confidence Limit],
+round(avg(READPROGSCORE)+1.96*SQRT(max([reading progress score variance])/sum(inreadprog)),1) as [Upper reading Confidence Limit],
+sum(inreadprog) as [Pupils in reading progress],
+--writing progress
+round(avg(WRITPROGSCORE),1) as [Average Writing Progress],
+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)) as [confidence interval width],
+round(avg(writPROGSCORE)-1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Lower writing Confidence Limit],
+round(avg(writPROGSCORE)+1.96*SQRT(max([writing progress score variance])/sum(inwritprog)),1) as [Upper writing Confidence Limit],
+sum(inwritprog) as [Pupils in writing progress],
+--maths progress
+round(avg(matPROGSCORE),1) as [Average maths Progress],
+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)) as [confidence interval width],
+round(avg(matPROGSCORE)-1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Lower maths Confidence Limit],
+round(avg(matPROGSCORE)+1.96*SQRT(max([maths progress score variance])/sum(inmatprog)),1) as [Upper maths Confidence Limit],
+sum(inmatprog) as [Pupils in maths progress]
+from #ks2_2016
+group by 
+	case 
+	when ethnic in ('WBRI', 'WCOR','WENG','WSCO','WWEL','WOWB','WIRI','WIRT',
+					'WROG','WROM','WROR','WROO',
+					'WOTH' ,'WALB', 'WBOS', 'WCRO', 'WGRE', 'WGRK', 'WGRC', 
+					'WITA', 'WKOS', 'WPOR', 'WSER', 'WTUR', 'WTUK', 'WTUC', 
+					'WEUR', 'WEEU', 'WWEU', 'WOTW') then '01_WHITE'
+	
+	WHEN ETHNIC IN ('MWBC','MWBA','MWAS','MWAP','MWAI','MWAO','MOTH', 'MAOE', 'MABL','MACH','MBOE','MCOE','MWOE','MWCH','MOTM') THEN '02_MIXED'
+	
+	WHEN ETHNIC IN ('AIND','APKN', 'AMPK', 'AKPA', 'AOPK','ABAN','AOTH','AAFR','AKAO','ANEP','ASNL','ASLT', 'ASRO','AOTA') THEN '03_ASIAN'
+	WHEN ETHNIC IN ('BCRB','BAFR','BANN','BCON','BGHA','BNGN','BSLN','BSOM','BSUD','BAOF','BOTH','BEUR','BNAM','BOTB') THEN '04_BLACK'
+	WHEN ETHNIC IN ('CHNE','CHKC','CMAL','CSNG','CTWN', 'COCH') THEN '05_CHINESE'
+	WHEN ETHNIC IN ('OOTH','OAFG','OARA','OEGY','OFIL','ORIN','OIRQ','OJPN',
+					'OKOR','OKRD','OLAM','OLEB','OLIB','OMAL','OMRC','OPOL',
+					'OTHA','OVIE','OYEM','OOEG') THEN '06_OTHER_ETHNIC_GROUP'
+	ELSE '07_UNCLASSIFIED'
+	END
+order by
+	case 
+	when ethnic in ('WBRI', 'WCOR','WENG','WSCO','WWEL','WOWB','WIRI','WIRT',
+					'WROG','WROM','WROR','WROO',
+					'WOTH' ,'WALB', 'WBOS', 'WCRO', 'WGRE', 'WGRK', 'WGRC', 
+					'WITA', 'WKOS', 'WPOR', 'WSER', 'WTUR', 'WTUK', 'WTUC', 
+					'WEUR', 'WEEU', 'WWEU', 'WOTW') then '01_WHITE'
+	
+	WHEN ETHNIC IN ('MWBC','MWBA','MWAS','MWAP','MWAI','MWAO','MOTH', 'MAOE', 'MABL','MACH','MBOE','MCOE','MWOE','MWCH','MOTM') THEN '02_MIXED'
+	
+	WHEN ETHNIC IN ('AIND','APKN', 'AMPK', 'AKPA', 'AOPK','ABAN','AOTH','AAFR','AKAO','ANEP','ASNL','ASLT', 'ASRO','AOTA') THEN '03_ASIAN'
+	WHEN ETHNIC IN ('BCRB','BAFR','BANN','BCON','BGHA','BNGN','BSLN','BSOM','BSUD','BAOF','BOTH','BEUR','BNAM','BOTB') THEN '04_BLACK'
+	WHEN ETHNIC IN ('CHNE','CHKC','CMAL','CSNG','CTWN', 'COCH') THEN '05_CHINESE'
+	WHEN ETHNIC IN ('OOTH','OAFG','OARA','OEGY','OFIL','ORIN','OIRQ','OJPN',
+					'OKOR','OKRD','OLAM','OLEB','OLIB','OMAL','OMRC','OPOL',
+					'OTHA','OVIE','OYEM','OOEG') THEN '06_OTHER_ETHNIC_GROUP'
+	ELSE '07_UNCLASSIFIED'
+	END
